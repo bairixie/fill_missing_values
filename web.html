@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Missing Value Predictor</title>
+    <style>
+        /* General Reset */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+    
+        h1, h2 {
+            text-align: center;
+            color: #444;
+        }
+    
+        h1 {
+            margin-top: 20px;
+        }
+    
+        h2 {
+            margin-top: 40px;
+        }
+    
+        /* Form Section */
+        #upload-form {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+        }
+    
+        #upload-form input[type="file"] {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    
+        #upload-form button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    
+        #upload-form button:hover {
+            background-color: #45a049;
+        }
+    
+        #status {
+            text-align: center;
+            font-size: 16px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+        }
+    
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+    
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+    
+        th {
+            background-color: #4CAF50;
+            color: white;
+            text-transform: uppercase;
+        }
+    
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    
+        tr:hover {
+            background-color: #ddd;
+        }
+    
+        /* Scrollable Preview Areas */
+        #original-preview, #predictions-preview {
+            width: 90%;
+            height: 300px; /* Limit the height */
+            margin: 20px auto;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow-y: auto; /* Add vertical scrolling */
+            background-color: white;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+        }
+    
+        /* Footer Link */
+        #download-link {
+            display: block;
+            text-align: center;
+            margin: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            text-decoration: none;
+            color: #4CAF50;
+        }
+    
+        #download-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Predict Missing Values</h1>
+
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" name="file" id="file" required>
+        <button type="submit">Upload & Predict</button>
+    </form>
+
+    <p id="status"></p>
+
+    <h2>Original File Preview</h2>
+    <div id="original-preview">No file preview available.</div>
+
+    <h2>Predictions Preview</h2>
+    <div id="predictions-preview">No predictions preview available.</div>
+
+    <a id="download-link" style="display: none;">Download Predicted Dataset</a>
+
+    <script>
+        document.getElementById("upload-form").onsubmit = async function(event) {
+            event.preventDefault();
+            const formData = new FormData();
+            const fileInput = document.getElementById("file");
+            formData.append("file", fileInput.files[0]);
+
+            const status = document.getElementById("status");
+            const originalPreview = document.getElementById("original-preview");
+            const predictionsPreview = document.getElementById("predictions-preview");
+            const downloadLink = document.getElementById("download-link");
+
+            status.textContent = "Uploading and processing...";
+            originalPreview.innerHTML = "Loading...";
+            predictionsPreview.innerHTML = "Loading...";
+            downloadLink.style.display = "none";
+
+            try {
+                const response = await fetch("http://localhost:5008/upload", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                renderTable(originalPreview, JSON.parse(data.preview));
+                renderTable(predictionsPreview, JSON.parse(data.preview));
+
+                // Update download link
+                downloadLink.href = data.download_url;
+                downloadLink.textContent = "Download Predicted Dataset";
+                downloadLink.style.display = "block";
+
+                status.textContent = "Processing complete!";
+            } catch (error) {
+                status.textContent = `Error: ${error.message}`;
+                console.error(error);
+            }
+        };
+
+        function renderTable(container, data) {
+            const table = document.createElement("table");
+            const thead = document.createElement("thead");
+            const tbody = document.createElement("tbody");
+
+            const headers = data.columns;
+            const headerRow = document.createElement("tr");
+            headers.forEach(header => {
+                const th = document.createElement("th");
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+
+            data.data.forEach(row => {
+                const tr = document.createElement("tr");
+                row.forEach(cell => {
+                    const td = document.createElement("td");
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            container.innerHTML = "";
+            container.appendChild(table);
+        }
+    </script>
+</body>
+</html>
